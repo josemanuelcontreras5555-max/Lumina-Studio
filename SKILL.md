@@ -1,605 +1,544 @@
 ---
-name: photo-editor
-description: Edit, resize, crop, filter, and optimize images — backgrounds, watermarks, and batch processing.
+name: website-cloning
+description: Clone any website as a pixel-perfect React + Vite app using Playwright extraction.
 ---
 
-# Photo Editor
+# Clone Website — Pixel-Perfect Methodology
 
-Resize, crop, filter, and optimize images. Pillow for Python, sharp for Node. Clarify intent before starting.
+Reverse-engineer and rebuild a target website as an exact replica React + Vite clone. Every font, color, icon, image, section, background, transition, and interaction must match the original. Zero guessing, zero placeholders.
 
-## Clarify Intent First
+## Cardinal Rules
 
-When a user asks to "edit a photo" or "change an image," the request could mean two very different things. **Ask before proceeding** if it's ambiguous:
+1. **Raw HTML is the source of truth.** Before building ANY section, read the corresponding portion of `raw.html`. Never build from memory, screenshots alone, or guessed structure.
+2. **One component per visual pattern.** Never reuse a component designed for one layout (e.g., product cards with prices) for a structurally different layout (e.g., category cards with just names). If two sections look different, they get different components or distinct CSS classes.
 
-1. **Edit the existing image** — crop, resize, recolor, adjust brightness/contrast, add text, remove background, apply filters, watermark, etc. → Use the tools below (Pillow, sharp, OpenCV).
-2. **Generate a new AI image** — create something from scratch or heavily reimagine the photo (e.g., "make this photo look like a painting," "put me on a beach," "create a logo from this concept"). → Use image generation tools instead, not this skill.
+3. **All assets downloaded before building starts.** Every image, font, SVG, and video must be local in `public/` before any component code is written. No mid-build downloads.
+4. **Build all sections, then verify the full page.** Building and screenshotting section-by-section is too slow. Build all components from raw HTML, assemble in App.tsx, then take a full-page screenshot and fix any discrepancies. This is 3-5x faster than per-section verification loops.
 
-### When to ask
+5. **No fabricated content.** Every heading, subtitle, button label, badge, price, and link must come from the source HTML. Never invent text that doesn't exist on the original page.
+6. **Replace the scaffolded CSS entirely.** The `createArtifact`scaffold includes Tailwind/shadcn boilerplate. Replace`index.css` completely with plain CSS — a Google Font import, CSS reset, CSS variables for design tokens, and nothing else. Clone pages don't use component libraries.
 
-- "Can you fix this photo?" → Probably editing. Ask what specifically needs fixing.
-- "Make this look better" → Ambiguous. Ask: "Do you want me to adjust the existing photo (brightness, contrast, cropping, etc.) or generate a new version with AI?"
+## Anti-Patterns (Common Mistakes to Avoid)
 
-- "Change the background" → Could be either. Ask: "Should I remove the current background (I can make it transparent or a solid color), or do you want an AI-generated scene behind you?"
-- "Make a profile picture from this" → Likely crop/resize, but could mean AI enhancement. Clarify.
+| Mistake | Correct Approach |
 
-#### Don't ask when it's obvious
+|---------|-----------------|
 
-- "Crop this to 1080x1080" → Just crop it.
-- "Make this a PNG" → Just convert it.
+| Outlined/bordered buttons when original uses filled/solid | Check `raw.html`for button classes and extract`background-color`, not`border` |
 
-- "Remove the background" → Use rembg.
-- "Generate a photo of a sunset" → No existing photo to edit — use image generation.
+| Center-aligned text when original is left-aligned | Extract `text-align` from computed styles |
 
-## Tool Selection
+| Adding badges/labels that don't exist in original | Only add elements that exist in `raw.html` |
 
-| Tool | Use when | Install |
+| Skipping sections or changing their order | Follow the section inventory checklist exactly |
 
-|---|---|---|
+| Using placeholder images | Download all images in Phase 1 before building |
 
-| **Pillow** | Default: resize, crop, filters, text, format conversion | `pip install Pillow` |
+| Reusing `ProductCard` for category grids | Each visually distinct card type gets its own component |
 
-| **OpenCV** | Computer vision: face detection, perspective transform, inpainting, contours | `pip install opencv-python numpy` |
+| Guessing font sizes, colors, spacing | Extract exact computed values; never approximate |
 
-| **sharp** (Node) | High-volume pipelines — 4-5x faster than Pillow (libvips-backed) | `npm install sharp` |
+| Building from screenshot interpretation alone | Always cross-reference `raw.html` for structure and content |
 
-| **rembg** | AI background removal | `pip install rembg` |
+| Using an SVG `<text>`element for the logo | Extract the real SVG logo paths from`raw.html` |
 
-| **ImageMagick** | CLI batch ops, 200+ formats | `apt install imagemagick` |
+| Running per-section screenshot QA loops | Build all sections, then do one full-page verify pass |
 
-## Open — ALWAYS Fix Orientation First
+| Keeping Tailwind/shadcn/Radix in a clone | Replace index.css with plain CSS; remove unused deps |
+
+| Translating/anglicizing text from a non-English page | Clone must use the EXACT language shown on the target page |
+
+| Guessing the announcement bar color | Extract computed `background-color` from the banner element |
+
+| Centering the logo when it's left-aligned | Take a header screenshot and compare logo position |
+
+| Omitting the account/rewards bar text | Extract ALL header elements including loyalty/rewards UI |
+
+## Legitimate Use Policy
+
+Before cloning, confirm the user's intent is legitimate. Ask:
+
+1. "Is this your own website or your client's website?"
+2. "What is this clone for?"
+
+Acceptable: rebuilding your own site, design reference/learning, staging copy, platform migration.
+
+**Refuse** if: impersonation, phishing, traffic theft, trademark infringement, or deception.
+
+For non-owned sites (design inspiration), remind the user to replace logos, brand names, trademarks, product data, and contact info with their own.
+
+## Prerequisites
+
+```bash
+
+pip install playwright
+
+CHROMIUM_PATH=$(find /nix/store -maxdepth 4 -name "chromium" -type f 2>/dev/null | head -1)
+
+echo "Chromium at: $CHROMIUM_PATH"
+
+```
+
+### Critical Playwright settings
+
+- Always use `--no-sandbox` args
+- Use `wait_until="domcontentloaded"`(not`"networkidle"`)
+
+- Add `page.wait_for_timeout(5000)` after navigation
+- Set `timeout=60000`on all`page.goto()` calls
+
+---
+
+## Phase 1: Reconnaissance & Extraction
+
+All extraction happens before any building. See `extraction.md` for complete Python scripts.
+
+### 1.1 Save Raw HTML (THE SOURCE OF TRUTH)
 
 ```python
 
-from PIL import Image, ImageOps
+raw_html = page.content()
 
-img = Image.open("photo.jpg")
+with open(f"{OUT_DIR}/raw.html", "w", encoding="utf-8") as f:
 
-img = ImageOps.exif_transpose(img) \# CRITICAL: applies EXIF rotation, then strips tag
-
-# Without this, phone photos appear sideways after processing
+f.write(raw_html)
 
 ```
 
-## Resize & Crop
+This file is the authoritative reference for ALL section structure, content, class names, element ordering, and text content. Computed styles supplement it but never replace it.
+
+### 1.2 Language & Locale Detection (CRITICAL)
+
+If the target URL contains a locale path (e.g., `/es-do`,`/fr`,`/de`,`/ja`), the clone MUST be in that language. However, server-side rendering may return English even for locale URLs — the localization often happens via client-side JavaScript after page load.
+
+#### Detection steps
+
+1. After `page.wait_for_timeout(8000)` (extra wait for JS locale loading), extract all visible text from key areas:
 
 ```python
 
-from PIL import Image, ImageOps
+locale_info = page.evaluate("""
 
-# --- Fit inside box, keep aspect ratio (shrink only) ---
+() => ({
 
-img.thumbnail((1080, 1080), Image.Resampling.LANCZOS) \# modifies in place
+bannerText: document.querySelector('[class*="banner"], [class*="announcement"]')?.innerText?.trim(),
 
-# --- Exact size, keep aspect, center-crop overflow (best for thumbnails) ---
+navLinks: [...document.querySelectorAll('nav a, .main-nav a')].map(a => a.innerText.trim()).filter(t => t).slice(0, 8),
 
-thumb = ImageOps.fit(img, (300, 300), Image.Resampling.LANCZOS, centering=(0.5, 0.5))
+loyaltyText: document.querySelector('[class*="loyalty"], [class*="rewards"]')?.innerText?.trim(),
 
-# --- Exact size, keep aspect, pad with color (letterbox) ---
+headerText: document.querySelector('header')?.innerText?.trim()?.slice(0, 500),
 
-padded = ImageOps.pad(img, (1920, 1080), color=(0, 0, 0))
+htmlLang: document.documentElement.lang,
 
-# --- Exact size, ignore aspect (will distort) ---
+url: window.location.href
 
-stretched = img.resize((800, 600), Image.Resampling.LANCZOS)
+})
 
-# --- Scale by factor ---
-
-half = img.resize((img.width // 2, img.height // 2), Image.Resampling.LANCZOS)
-
-# --- Manual crop (left, upper, right, lower) — NOT (x, y, w, h) ---
-
-cropped = img.crop((100, 50, 900, 650))
+""")
 
 ```
 
-**Resampling filters:** `LANCZOS`for photo downscale (best quality),`BICUBIC`for upscale,`NEAREST` for pixel art/icons (no smoothing).
+1. If the URL locale doesn't match the extracted text language, the page probably needs more time for JS to run, or the locale is cookie-based.
+2. **When in doubt, use the language implied by the URL locale.** If `/es-do` shows English text in the raw HTML, translate all user-facing text to Spanish when building. The URL locale is the user's intent.
 
-## Face-Aware Cropping
+**Brand terms stay in the original language.** Product names (e.g., "ALO Runner"), color names (e.g., "SUNSHINE"), brand names (e.g., "ALO Wellness Club") should NOT be translated — the real site keeps these in English even on localized pages.
 
-For portraits and headshots, detect the face first and crop around it instead of guessing coordinates. This produces much better results for profile pictures.
+### 1.3 Screenshots (Desktop only for initial build)
+
+Take a full-page screenshot at 1440px. This becomes the primary visual reference. Tablet and mobile screenshots are only needed if the user specifically requests responsive behavior.
+
+**Take a separate header-only screenshot** at this stage — crop to just the top 150px. This will be your reference for logo placement, nav layout, banner color, and account/rewards UI. Header issues are the most common mistakes.
+
+### 1.4 Section Inventory
+
+Parse the raw HTML to produce a complete ordered checklist. For each section, record:
+
+- Section index and DOM selector (tag, id, classes)
+- Exact heading text and subheading text
+
+- Button labels
+- Image count
+
+- Background color (if non-transparent)
+
+Save as `clone-data/inventory.json`. This becomes the build checklist.
+
+### 1.5 Design Tokens
+
+Extract CSS custom properties, body font-family, heading font-family, primary colors. Save to `clone-data/tokens.json`.
+
+### 1.6 Font Handling
+
+#### Priority order
+
+1. **Download actual font files** — Check `@font-face`rules for`.woff2`/`.woff`URLs. Download to`public/fonts/`and declare`@font-face`in`index.css`.
+2. **Use Google Fonts if available** — If the site uses Google Fonts, add the `@import`or`<link>` tag.
+
+3. **Map to closest equivalent** — Only as a last resort:
+
+| Proprietary Font | Google Fonts Equivalent |
+
+|-----------------|----------------------|
+
+| Proxima Nova | DM Sans |
+
+| Geograph | DM Sans |
+
+| Self Modern | DM Serif Text |
+
+| Graphik | Inter |
+
+| Circular | DM Sans |
+
+| GT Walsheim | Plus Jakarta Sans |
+
+| Tiempos | Playfair Display |
+
+| Apercu | Source Sans Pro |
+
+| Founders Grotesk | Space Grotesk |
+
+| National | DM Sans |
+
+| Futura | Jost |
+
+| Avenir | Nunito Sans |
+
+| Gotham | Montserrat |
+
+| Brandon Grotesque | Raleway |
+
+### 1.7 SVG Logo Extraction (CRITICAL)
+
+The site's logo is almost always an inline SVG in the `raw.html`, NOT just text. Search for it:
+
+```bash
+
+# Search raw HTML for SVG near logo references
+
+python3 -c "
+
+with open('clone-data/raw.html') as f:
+
+html = f.read()
+
+# Search around 'logo' class references
+
+import re
+
+for m in re.finditer(r'logo', html[:15000], re.IGNORECASE):
+
+idx = m.start()
+
+# Look for SVG nearby
+
+svg_start = html.find('<svg', max(0, idx-200))
+
+if svg_start != -1 and svg_start < idx + 500:
+
+svg_end = html.find('</svg>', svg_start) + 6
+
+print(html[svg_start:svg_end])
+
+break
+
+"
+
+```
+
+**Never use an SVG `<text>`element as a logo substitute.** Extract the real SVG`<path>` elements from the source HTML. The logo is the most recognizable element on the page — getting it wrong immediately signals "fake."
+
+### 1.8 Asset Download (ALL assets, ALL at once)
+
+Download every image, video, SVG, background image, and font file before building starts. See `extraction.md` for the complete download script.
+
+**CDN URL upscaling** (increase resolution before downloading):
+
+- **Shopify `_small`suffix**:`_small.jpg`→`_1200x.jpg` (very common pattern)
+- **Shopify query params**: `?width=X`→`?width=1200`
+
+- **Sanity**: `?w=X`→`?w=1200`
+- **Cloudinary**: `w_X`→`w_1200`
+
+- **Contentful**: `?w=X`→`?w=1200`
+
+**Verification:** After downloading, verify every file exists and is >100 bytes. The download script includes automatic retry with fallback User-Agent strings.
+
+### 1.9 Header Deep Extraction (CRITICAL)
+
+The header is the most error-prone section. Extract detailed information beyond the basic inventory:
 
 ```python
 
-import cv2
+header_info = page.evaluate("""
 
-import numpy as np
+() => {
 
-from PIL import Image, ImageOps
+const header = document.querySelector('header');
 
-img = Image.open("portrait.jpg")
+if (!header) return null;
 
-img = ImageOps.exif_transpose(img)
+// Banner/announcement bar
 
-cv_img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+const banner = document.querySelector('[class*="banner"], [class*="announcement"], [class*="uni-banner"]');
 
-gray = cv2.cvtColor(cv_img, cv2.COLOR_BGR2GRAY)
+const bannerBg = banner ? getComputedStyle(banner.querySelector('[class*="col"], div') || banner).backgroundColor : null;
 
-cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+// Logo position
 
-faces = cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(100, 100))
+const logo = header.querySelector('svg, [class*="logo"] img, [class*="logo"] svg');
 
-if len(faces) > 0:
+const logoRect = logo?.getBoundingClientRect();
 
-# Use the largest detected face
+const headerRect = header.getBoundingClientRect();
 
-fx, fy, fw, fh = max(faces, key=lambda f: f[2] * f[3])
+// Nav links
 
-face_cx = fx + fw // 2
+const navLinks = [...header.querySelectorAll('nav a, [class*="nav"] a')].map(a => a.innerText.trim()).filter(t => t && t.length < 30);
 
-face_cy = fy + fh // 2
+// Right-side elements (account, rewards, search, cart, wishlist)
 
-# Square crop centered on face with padding (3x face height for head+shoulders)
+const rightElements = [...header.querySelectorAll('[class*="loyalty"], [class*="rewards"], [class*="account"], [class*="cart"], [class*="wishlist"]')];
 
-crop_size = min(img.width, img.height, fh * 3)
+return {
 
-left = max(0, face_cx - crop_size // 2)
+bannerText: banner?.innerText?.trim(),
 
-top = max(0, face_cy - int(crop_size * 0.35)) \# face in upper third
+bannerBgColor: bannerBg,
 
-right = left + crop_size
+bannerTextColor: banner ? getComputedStyle(banner).color : null,
 
-bottom = top + crop_size
+logoPosition: logoRect ? (logoRect.left < headerRect.width / 3 ? 'left' : logoRect.left < headerRect.width * 2/3 ? 'center' : 'right') : 'unknown',
 
-# Clamp to image bounds
+navLinks: navLinks.slice(0, 10),
 
-if right > img.width:
+rightSideText: rightElements.map(el => el.innerText?.trim()).filter(t => t),
 
-left -= (right - img.width)
+rightSideHTML: rightElements.map(el => el.innerHTML?.slice(0, 300)),
 
-right = img.width
+};
 
-if bottom > img.height:
+}
 
-top -= (bottom - img.height)
-
-bottom = img.height
-
-left = max(0, left)
-
-top = max(0, top)
-
-cropped = img.crop((left, top, right, bottom))
-
-profile = cropped.resize((800, 800), Image.Resampling.LANCZOS)
-
-profile.save("profile_800x800.jpg", quality=92, optimize=True)
-
-else:
-
-# Fallback: center crop
-
-profile = ImageOps.fit(img, (800, 800), Image.Resampling.LANCZOS, centering=(0.5, 0.4))
-
-profile.save("profile_800x800.jpg", quality=92, optimize=True)
+""")
 
 ```
 
-### Tips
+This prevents the three most common header mistakes: wrong banner color, wrong logo position, missing account/rewards text.
 
-- `centering=(0.5, 0.4)` in the fallback biases the crop slightly toward the top — better for portraits than dead center.
-- For group photos with multiple faces, you may want to fit all detected faces in the crop instead of picking the largest.
+### 1.10 Footer Link Extraction
 
-## Color & Exposure
+Extract all footer links separately — they're needed for the footer component:
 
 ```python
 
-from PIL import ImageEnhance, ImageOps
+footer_data = page.evaluate("""
 
-# --- Enhancers: 1.0 = unchanged, <1 less, >1 more ---
+() => {
 
-img = ImageEnhance.Brightness(img).enhance(1.15)
+const footer = document.querySelector('footer');
 
-img = ImageEnhance.Contrast(img).enhance(1.2)
+if (!footer) return null;
 
-img = ImageEnhance.Color(img).enhance(1.1) \# saturation
+return {
 
-img = ImageEnhance.Sharpness(img).enhance(1.5)
+text: footer.innerText,
 
-# --- Quick ops ---
+bgColor: getComputedStyle(footer).backgroundColor,
 
-gray = ImageOps.grayscale(img)
+links: [...footer.querySelectorAll('a')].map(a => ({
 
-inverted = ImageOps.invert(img.convert("RGB"))
+text: a.innerText.trim(), href: a.getAttribute('href')
 
-auto = ImageOps.autocontrast(img, cutoff=1) \# stretch histogram, clip 1% extremes
+})).filter(l => l.text)
 
-equalized = ImageOps.equalize(img) \# flatten histogram
+};
 
-```
+}
 
-## Filters
-
-```python
-
-from PIL import ImageFilter
-
-img.filter(ImageFilter.GaussianBlur(radius=5))
-
-img.filter(ImageFilter.UnsharpMask(radius=2, percent=150, threshold=3)) \# better than SHARPEN
-
-img.filter(ImageFilter.BoxBlur(10))
-
-img.filter(ImageFilter.FIND_EDGES)
-
-img.filter(ImageFilter.MedianFilter(size=3)) \# denoise, removes salt-and-pepper
+""")
 
 ```
 
-## Watermark / Logo Removal
+---
 
-Use OpenCV's `cv2.inpaint()`— it fills a masked region by sampling surrounding pixels, producing seamless results. **Do not use pixel-by-pixel`getpixel`/`putpixel` loops** — they are slow and produce visible artifacts.
+## Phase 2: Foundation Build
 
-### Step 1: Find the watermark boundaries
+Sequential — do this yourself, not delegated.
 
-Always inspect the image at full resolution first. Watermarks are often much larger than they appear in thumbnails. Save a crop of the watermark region to verify coordinates before attempting removal.
+1. **Create artifact** via `createArtifact()`with type`react-vite`
+2. **Replace `index.css` entirely** — Remove ALL Tailwind/shadcn boilerplate. Write plain CSS:
 
-```python
+- Google Fonts `@import`(or`@font-face` for self-hosted)
+- Universal reset (`*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }`)
 
-import cv2
+- CSS variables for design tokens (font families, colors)
+- Basic body styles (font-family, color, background, antialiasing)
 
-import numpy as np
+- Reset styles for `a`,`button`,`img`,`ul/ol`
 
-from PIL import Image, ImageOps
+1. **Replace `App.tsx`** — Remove all router/query/toast boilerplate. A clone is a single static page.
+2. **Organize assets** in `public/images/`
 
-img = Image.open("photo.jpg")
+---
 
-img = ImageOps.exif_transpose(img)
+## Phase 3: Build All Sections
 
-w, h = img.size
+Build all components from the section inventory, referencing `raw.html` for exact content. Use inline styles or CSS modules — not Tailwind.
 
-# Save a debug crop of the suspected watermark area to verify its extent
+### For EACH section in the inventory
 
-debug = img.crop((0, 0, min(w, 1000), min(h, 500)))
+**Step 1: Read the raw HTML** for that section's exact structure, text, and element hierarchy.
 
-debug.save("debug_watermark_area.jpg")
+**Step 2: Build the component** using:
 
-# IMPORTANT: View this debug image to confirm where the watermark actually is
+- Exact text content from raw HTML (copy-paste headings, button labels)
+- Local image paths from `public/images/`
 
-# before proceeding. Guessing coordinates wastes iterations.
+- Real SVG paths for logos/icons extracted from raw HTML
+- Inline styles for layout (position, display, flex, grid, padding, colors, fonts)
+
+- Hover interactions via `onMouseEnter`/`onMouseLeave` inline handlers
+- For carousels: `useRef`+`scrollBy`with`overflow-x: auto; scrollbar-width: none`
+
+**Step 3: Use `import.meta.env.BASE_URL`prefix** for all image`src` attributes so they resolve correctly under the artifact's preview path.
+
+### Build tips
+
+- **Build ALL sections before verifying.** Don't stop to screenshot after each one.
+- **Use inline styles** — Simpler than CSS files for clones, and avoids naming/scoping issues.
+
+- **Reusable components are okay when the visual pattern is truly identical** (e.g., two hero banners that differ only in image/button text can share a `HeroBanner` component with props).
+- **`href="#"` is fine** — For a visual clone, real link targets are a nice-to-have, not a requirement.
+
+- **Remove unused scaffolded dependencies** — The `package.json`from`createArtifact` includes 40+ shadcn/Radix packages. These are dead weight for a clone.
+
+---
+
+## Phase 4: Page Assembly & Verification
+
+1. Import all components into `App.tsx` in exact DOM order from the inventory
+2. Start the dev server and take a full-page screenshot at 1280px
+
+3. Compare against the original screenshot from Phase 1
+4. Fix discrepancies section by section
+
+5. Run e2e test to verify all sections render (use `runTest()`)
+
+### Verification checklist
+
+- [ ] All sections present in correct order
+- [ ] Logo is the real SVG (not text substitute)
+
+- [ ] Logo position matches (left/center/right)
+- [ ] All images load (no broken images in console)
+
+- [ ] Heading text matches exactly
+- [ ] All text is in the correct language (match URL locale)
+
+- [ ] Button styles match (filled vs outlined, correct colors)
+- [ ] Background colors match for sections with colored backgrounds
+
+- [ ] Announcement bar has correct background color AND text
+- [ ] Account/rewards/loyalty text is present in header (if original has it)
+
+- [ ] Carousels scroll properly
+- [ ] Hover states work on interactive elements
+
+- [ ] Footer has correct columns and content
+
+---
+
+## Component Specification Format
+
+For complex sections dispatched to subagents, write specs at `docs/research/components/<name>.md`:
+
+```markdown
+
+# <ComponentName> Specification
+
+## Overview
+
+- Target file: `src/components/<ComponentName>.tsx`
+- Interaction model: <static | click | scroll | time>
+
+## DOM Structure (from raw.html)
+
+<Exact element hierarchy with tag names, classes, nesting>
+
+## Computed Styles (exact values)
+
+### Container
+
+- display: flex; flex-direction: row; gap: 24px; padding: 60px 80px;
+
+### Heading
+
+- font-size: 48px; font-weight: 400; color: \#230d0d;
+
+### Button
+
+- background-color: \#f195a7; border-radius: 999px; padding: 12px 32px;
+
+## Text Content (verbatim from raw.html)
+
+<Every heading, paragraph, button label — copy-pasted exactly>
+
+## Assets (local paths)
+
+- /images/products/charm-1.webp
+
+## States & Behaviors
+
+### Hover on card
+
+- transform: none → scale(1.02)
+- transition: transform 0.3s ease
 
 ```
 
-### Step 2: Create a mask and inpaint
+---
 
-```python
+## Quick Reference: Full Workflow
 
-cv_img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+```text
 
-# --- Option A: Color-based mask (best for colored logos on neutral backgrounds) ---
+1. pip install playwright; find Chromium path
+2. Navigate to target URL with Playwright
 
-hsv = cv2.cvtColor(cv_img, cv2.COLOR_BGR2HSV)
+3. Save raw.html (page.content()) — THIS IS THE SOURCE OF TRUTH
+4. Detect locale/language from URL path (e.g., /es-do = Spanish)
 
-# Example: detect blue watermark pixels (adjust ranges for your watermark color)
+5. Take full-page desktop screenshot + header-only screenshot (top 150px)
+6. Build section inventory from raw.html → clone-data/inventory.json
 
-lower_blue = np.array([90, 40, 40])
+7. Extract design tokens → clone-data/tokens.json
+8. Extract SVG logo from raw.html (search for <svg near 'logo' classes)
 
-upper_blue = np.array([130, 255, 255])
+9. Extract header details: banner color, logo position, nav links, rewards/loyalty text
+10. Extract fonts (download .woff2 files or map to Google Fonts)
 
-mask = cv2.inRange(hsv, lower_blue, upper_blue)
+11. Download ALL images/videos/SVGs to public/images/ (batch with retry)
+12. Extract footer links → clone-data/footer.json
 
-# Also catch dark text pixels in the watermark region
+13. createArtifact("react-vite", ...)
+14. Replace index.css (plain CSS reset + design tokens — NO Tailwind/shadcn)
 
-roi_gray = cv2.cvtColor(cv_img[:wm_h, :wm_w], cv2.COLOR_BGR2GRAY)
+15. Replace App.tsx (remove router/query boilerplate — single page)
+16. Build ALL section components (referencing raw.html, using correct language)
 
-_, dark_mask = cv2.threshold(roi_gray, 80, 255, cv2.THRESH_BINARY_INV)
+17. Assemble page in App.tsx (exact DOM order from inventory)
+18. Start dev server, take full-page screenshot, compare vs original
 
-# Combine: place dark_mask into the full-size mask
+19. Fix discrepancies (check header first — most common mistake area)
+20. Run e2e test to verify all sections render
 
-mask[:wm_h, :wm_w] = cv2.bitwise_or(mask[:wm_h, :wm_w], dark_mask)
-
-# --- Option B: Region-based mask (when you know the bounding box) ---
-
-# Simpler but removes everything in the box, not just the watermark pixels
-
-mask = np.zeros(cv_img.shape[:2], dtype=np.uint8)
-
-mask[0:wm_h, 0:wm_w] = 255 \# fill the entire watermark region
-
-# Dilate the mask slightly to catch anti-aliased edges
-
-kernel = np.ones((5, 5), np.uint8)
-
-mask = cv2.dilate(mask, kernel, iterations=2)
-
-# Inpaint — fills masked area using surrounding pixel data
-
-result = cv2.inpaint(cv_img, mask, inpaintRadius=7, flags=cv2.INPAINT_TELEA)
-
-# INPAINT_TELEA: fast marching method (best for most cases)
-
-# INPAINT_NS: Navier-Stokes (better for large regions, slower)
-
-result_pil = Image.fromarray(cv2.cvtColor(result, cv2.COLOR_BGR2RGB))
-
-result_pil.save("clean.jpg", quality=92, optimize=True)
+21. Present artifact
 
 ```
 
-### Step 3: Verify the result
+## Reference Files
 
-```python
-
-# Save a crop of the same region after removal to confirm it's clean
-
-verify = result_pil.crop((0, 0, min(w, 1000), min(h, 500)))
-
-verify.save("debug_watermark_removed.jpg")
-
-# View this image before proceeding to resize/crop
-
-```
-
-#### Tips (2)
-
-- For watermarks on uniform backgrounds (studio portraits, product photos), `INPAINT_TELEA`with`inpaintRadius=5-10` works well.
-- For watermarks over textured areas (landscapes, fabric), use `INPAINT_NS` with a larger radius (10-15).
-
-- If the watermark is semi-transparent, color-based masking (Option A) is more precise than a rectangular region mask.
-- Always verify at full resolution — artifacts invisible in thumbnails may be obvious when zoomed in.
-
-## Text & Watermark (Adding)
-
-```python
-
-from PIL import Image, ImageDraw, ImageFont
-
-draw = ImageDraw.Draw(img)
-
-try:
-
-font = ImageFont.truetype("DejaVuSans-Bold.ttf", 48) \# Linux default
-
-except OSError:
-
-font = ImageFont.load_default() \# fallback (tiny, ugly)
-
-# --- Text with outline ---
-
-draw.text((50, 50), "Caption", font=font, fill="white",
-
-stroke_width=3, stroke_fill="black")
-
-# --- Centered text ---
-
-bbox = draw.textbbox((0, 0), "Centered", font=font)
-
-tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
-
-draw.text(((img.width - tw) // 2, (img.height - th) // 2), "Centered", font=font, fill="white")
-
-# --- Watermark (semi-transparent PNG overlay) ---
-
-logo = Image.open("logo.png").convert("RGBA")
-
-logo.thumbnail((img.width // 5, img.height // 5))
-
-# Fade to 40% opacity
-
-alpha = logo.split()[3].point(lambda p: int(p * 0.4))
-
-logo.putalpha(alpha)
-
-pos = (img.width - logo.width - 20, img.height - logo.height - 20)
-
-img.paste(logo, pos, logo) \# third arg = alpha mask — REQUIRED for transparency
-
-```
-
-## Save & Optimize
-
-```python
-
-# --- JPEG ---
-
-img.convert("RGB").save("out.jpg", quality=85, optimize=True, progressive=True)
-
-# convert("RGB") REQUIRED if source has alpha — JPEG can't store transparency
-
-# --- PNG (lossless — quality param does nothing) ---
-
-img.save("out.png", optimize=True, compress_level=9)
-
-# --- WebP (best web format: ~30% smaller than JPEG at same quality) ---
-
-img.save("out.webp", quality=85, method=6) \# method 0-6, 6=slowest/best compression
-
-# --- AVIF (smallest files, Pillow 11+, slower encode) ---
-
-img.save("out.avif", quality=75) \# 75 ≈ JPEG 85 visually, ~50% smaller
-
-# --- Strip all metadata (privacy) ---
-
-clean = Image.new(img.mode, img.size)
-
-clean.putdata(list(img.getdata()))
-
-clean.save("stripped.jpg", quality=85)
-
-```
-
-**Quality guide:** JPEG/WebP 85 = sweet spot. 90+ = diminishing returns. <70 = visible artifacts. Never re-save JPEGs repeatedly — each save degrades (generation loss).
-
-## Batch Processing
-
-```python
-
-from pathlib import Path
-
-from PIL import Image, ImageOps
-
-out = Path("optimized"); out.mkdir(exist_ok=True)
-
-for p in Path("photos").glob("*.[jJ][pP]*[gG]"): \# matches jpg, jpeg, JPG, JPEG
-
-img = ImageOps.exif_transpose(Image.open(p))
-
-img.thumbnail((1920, 1920), Image.Resampling.LANCZOS)
-
-img.convert("RGB").save(out / f"{p.stem}.webp", quality=85, method=6)
-
-```
-
-## sharp (Node.js — use for high throughput)
-
-```javascript
-
-const sharp = require('sharp');
-
-// Resize + convert + optimize, streaming (flat memory)
-
-await sharp('in.jpg')
-
-.rotate() // auto-rotate from EXIF (like exif_transpose)
-
-.resize(1080, 1080, { fit: 'cover', position: 'center' }) // = ImageOps.fit
-
-.webp({ quality: 85 })
-
-.toFile('out.webp');
-
-// fit options: 'cover' (crop), 'contain' (letterbox), 'inside' (shrink to fit), 'fill' (stretch)
-
-// Composite watermark
-
-await sharp('photo.jpg')
-
-.composite([{ input: 'logo.png', gravity: 'southeast' }])
-
-.toFile('watermarked.jpg');
-
-```
-
-sharp strips all metadata by default. Use `.withMetadata()` to preserve EXIF/ICC.
-
-## OpenCV (when Pillow isn't enough)
-
-```python
-
-import cv2
-
-img = cv2.imread("in.jpg") \# BGR order, not RGB!
-
-gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-# Face detection
-
-cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
-
-faces = cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
-
-for (x, y, w, h) in faces:
-
-cv2.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 2)
-
-cv2.imwrite("out.jpg", img)
-
-# Pillow <-> OpenCV
-
-import numpy as np
-
-cv_img = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
-
-pil_img = Image.fromarray(cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB))
-
-```
-
-## Bulk Pixel Manipulation — Use numpy, Not getpixel/putpixel
-
-**Never loop over pixels with `getpixel()`/`putpixel()`** for large regions — it is extremely slow (minutes for a full image). Convert to a numpy array, operate on the array, then convert back.
-
-```python
-
-import numpy as np
-
-from PIL import Image
-
-img = Image.open("photo.jpg").convert("RGB")
-
-arr = np.array(img) \# shape: (height, width, 3), dtype: uint8
-
-# Example: replace a region with sampled background color
-
-bg_color = arr[50, -100, :] \# sample one pixel from the right side
-
-arr[0:300, 0:800, :] = bg_color \# fill the region instantly
-
-# Example: blend two regions with a gradient mask
-
-alpha = np.linspace(1, 0, 100).reshape(1, 100, 1) \# horizontal fade over 100px
-
-region = arr[0:300, 700:800, :]
-
-bg_strip = np.full_like(region, bg_color)
-
-arr[0:300, 700:800, :] = (region * (1 - alpha) + bg_strip * alpha).astype(np.uint8)
-
-result = Image.fromarray(arr)
-
-```
-
-**Speed comparison:** `putpixel` on a 700x250 region = ~175,000 calls = 30+ seconds. numpy array slice = instant.
-
-## Platform Dimensions
-
-| Platform | Size | Ratio |
-
-|---|---|---|
-
-| Instagram post | 1080x1080 | 1:1 |
-
-| Instagram story / TikTok | 1080x1920 | 9:16 |
-
-| LinkedIn profile photo | 400x400 | 1:1 |
-
-| LinkedIn banner | 1584x396 | 4:1 |
-
-| LinkedIn post | 1200x627 | 1.91:1 |
-
-| Twitter/X profile | 400x400 | 1:1 |
-
-| Twitter/X post | 1200x675 | 16:9 |
-
-| Facebook profile | 320x320 | 1:1 |
-
-| Facebook cover | 851x315 | 2.7:1 |
-
-| YouTube thumbnail | 1280x720 | 16:9 |
-
-| WhatsApp profile | 500x500 | 1:1 |
-
-| Open Graph (link preview) | 1200x630 | 1.91:1 |
-
-## Debug Workflow
-
-When edits don't look right, follow this process instead of re-running the whole pipeline blindly:
-
-1. **Save a debug crop of the target area** before and after processing. View both to confirm what changed.
-2. **Work at full resolution first.** Watermarks and artifacts that look small in a thumbnail can be large at native resolution. Always inspect at the original size before resizing.
-
-3. **Save intermediate results.** After each major processing step (watermark removal, crop, resize), save a checkpoint image so you can identify which step introduced a problem.
-4. **Spot-check specific pixels** to verify processing took effect:
-
-```python
-
-# Quick pixel check after watermark removal
-
-for (x, y) in [(60, 50), (200, 130), (400, 100)]:
-
-print(f"({x},{y}): {img.getpixel((x, y))}")
-
-# If these still show watermark colors (e.g. bright blue), removal failed
-
-```
-
-## Gotchas
-
-- **`img.crop()`box is`(left, top, right, bottom)`** — absolute coords, NOT`(x, y, width, height)`
-- **`thumbnail()`mutates in place and returns`None`** — don't do`img = img.thumbnail(...)`
-
-- **Paste with transparency** needs the image as the third (mask) arg: `bg.paste(fg, pos, fg)`
-- **Palette mode ("P")** breaks many filters — `img.convert("RGB")` first
-
-- **Fonts:** `ImageFont.truetype`needs a real font file. Linux:`/usr/share/fonts/truetype/dejavu/`. Ship a`.ttf` with your code for portability.
-- **OpenCV needs numpy** — always `pip install opencv-python numpy` together
-
-- **OpenCV uses BGR, Pillow uses RGB** — convert when switching between them or colors will be wrong
+- `extraction.md` — Complete Python extraction scripts (Playwright)
+- `pitfalls.md` — Detailed common pitfalls and solutions
