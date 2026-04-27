@@ -1,0 +1,20 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "X-jHxlzT0vDm3jpXJRPZT"
+uri = "file://artifacts/lumina-studio/src/assets/bg-metal-1.png"
+type = "image"
+title = "Dark brushed metal texture"
+
+[[generated]]
+id = "bAIHY4jTpgQSnNCM-mE_U"
+uri = "file://artifacts/lumina-studio/src/assets/bg-metal-2.png"
+type = "image"
+title = "Liquid chrome obsidian waves"
+
+[[generated]]
+id = "c851b-IVhL1a9c9omv0pk"
+uri = "file://artifacts/lumina-studio/src/assets/bg-metal-3.png"
+type = "image"
+title = "Dark metallic geometric shapes"
