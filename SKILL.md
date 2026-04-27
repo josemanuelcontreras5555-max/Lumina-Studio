@@ -1,286 +1,605 @@
 ---
-name: branding-generator
-description: Create brand identity kits — logos, color palettes, typography, naming, and style guides.
+name: photo-editor
+description: Edit, resize, crop, filter, and optimize images — backgrounds, watermarks, and batch processing.
 ---
 
-# Branding Generator
+# Photo Editor
 
-Create brand identity kits. Interview the user, research the space, then deliver 3 distinct brand directions with visual assets.
+Resize, crop, filter, and optimize images. Pillow for Python, sharp for Node. Clarify intent before starting.
 
-## When to Use
+## Clarify Intent First
 
-- "I need branding / a brand identity / brand kit"
-- "I need a logo" / "design me a logo"
+When a user asks to "edit a photo" or "change an image," the request could mean two very different things. **Ask before proceeding** if it's ambiguous:
 
-- "What colors should I use?" / "help me pick colors"
-- "What fonts should I use?" / "help me choose typography"
+1. **Edit the existing image** — crop, resize, recolor, adjust brightness/contrast, add text, remove background, apply filters, watermark, etc. → Use the tools below (Pillow, sharp, OpenCV).
+2. **Generate a new AI image** — create something from scratch or heavily reimagine the photo (e.g., "make this photo look like a painting," "put me on a beach," "create a logo from this concept"). → Use image generation tools instead, not this skill.
 
-- "I need a style guide" / "brand guidelines" / "brand book" / "brand assets"
-- "I need a visual identity" / "design system"
+### When to ask
 
-- "Help me name my company / app / product"
-- "I'm starting a new business/product" (early-stage founders needing naming + identity)
+- "Can you fix this photo?" → Probably editing. Ask what specifically needs fixing.
+- "Make this look better" → Ambiguous. Ask: "Do you want me to adjust the existing photo (brightness, contrast, cropping, etc.) or generate a new version with AI?"
 
-- "Make my app look more professional" / "my app looks generic" (signals a visual identity gap)
-- Color palettes, typography, visual identity from scratch
+- "Change the background" → Could be either. Ask: "Should I remove the current background (I can make it transparent or a solid color), or do you want an AI-generated scene behind you?"
+- "Make a profile picture from this" → Likely crop/resize, but could mean AI enhancement. Clarify.
 
-- Rebranding or brand refresh
-- Brand naming
+#### Don't ask when it's obvious
 
-## When NOT to Use
+- "Crop this to 1080x1080" → Just crop it.
+- "Make this a PNG" → Just convert it.
 
-- Full UI design (use design skill) · Slide decks (use slides skill)
+- "Remove the background" → Use rembg.
+- "Generate a photo of a sunset" → No existing photo to edit — use image generation.
 
-## Step 1: Brand Interview
+## Tool Selection
 
-Conduct this like a real branding agency discovery session. Ask these questions **conversationally, not as a wall of text** — adapt based on answers, ask follow-ups, go deeper where it matters. Group into 2-3 messages max.
+| Tool | Use when | Install |
 
-### Round 1 — The Business
+|---|---|---|
 
-- What does your company/product do, in one sentence?
-- Who is your target audience? (Be specific — age, role, lifestyle, not just "everyone")
+| **Pillow** | Default: resize, crop, filters, text, format conversion | `pip install Pillow` |
 
-- What problem do you solve that nobody else does?
-- What's your pricing position? (Budget / mid-market / premium / luxury)
+| **OpenCV** | Computer vision: face detection, perspective transform, inpainting, contours | `pip install opencv-python numpy` |
 
-- **Do you already have a name, or do you need naming help?**
+| **sharp** (Node) | High-volume pipelines — 4-5x faster than Pillow (libvips-backed) | `npm install sharp` |
 
-### Round 2 — The Feeling
+| **rembg** | AI background removal | `pip install rembg` |
 
-- Name 3 brands you admire (any industry) and what you admire about them
-- If your brand were a person, how would they dress? How would they speak?
+| **ImageMagick** | CLI batch ops, 200+ formats | `apt install imagemagick` |
 
-- What emotions should someone feel when they see your brand for the first time?
-- What's the one word you'd want people to associate with you?
+## Open — ALWAYS Fix Orientation First
 
-- Any colors, styles, or aesthetics you absolutely hate?
+```python
 
-### Round 3 — Practical Constraints
+from PIL import Image, ImageOps
 
-- Do you have any existing brand assets (logo, colors, fonts) you want to keep?
-- Where will this brand primarily live? (Web app, mobile app, physical product, social media, print)
+img = Image.open("photo.jpg")
 
-- Any industry conventions you need to follow — or deliberately break?
-- Competitor URLs or screenshots? (If provided, extract their palettes with colorthief for contrast analysis)
+img = ImageOps.exif_transpose(img) \# CRITICAL: applies EXIF rotation, then strips tag
 
-### Round 4 — Brand Touchpoints
-
-- What is the **single most important touchpoint** for your brand? (e.g., mobile app icon, website hero, packaging, storefront, email newsletter, social media profile)
-- List 3-5 specific contexts where people will encounter your brand (e.g., "app store listing", "trade show banner", "Instagram stories", "invoice PDF", "product unboxing")
-
-- Which of these touchpoints is the first impression for most users?
-
-Prioritize the most important touchpoints when building mockups in Step 5. The "Brand in Action" board should focus on the touchpoints the user actually cares about, not generic website pages.
-
-**Do not proceed until you have solid answers.** Push back if answers are vague — "everyone" is not a target audience, "clean and modern" is not a personality.
-
-## Step 2: Research
-
-After the interview, do targeted research before generating directions:
-
-- **Competitor visual audit** — Search for 3-5 competitors' visual identities. Extract their color palettes, typography, and logo styles. Present a side-by-side summary of what's common in the space so the new brand can visually stand apart — not just conceptually, but with measurable color distance.
-- **Mood/reference gathering** — Search for visual references matching the interview answers (e.g., "minimalist premium SaaS branding", "bold playful fintech design").
-
-- **Industry conventions** — What do users in this space expect? Where is there room to stand out?
-
-## Step 2.5: Brand Naming (if needed)
-
-If the user doesn't have a name, generate name candidates as part of each brand direction. For each direction, propose 2-3 name options.
-
-### Naming criteria
-
-- **Memorable** — short (ideally 1-2 syllables, max 3), easy to say and spell
-- **Distinctive** — doesn't sound like existing competitors in the space
-
-- **Meaningful** — connects to the brand concept, even if abstractly
-- **Domain-friendly** — check `.com`availability via`webSearch("site:instantdomainsearch.com [name]")` or similar
-
-- **Social-friendly** — the name should work as a handle (@name) on major platforms
-
-#### Name generation approaches
-
-1. **Portmanteau** — blend two relevant words (e.g., Pinterest = Pin + Interest)
-2. **Action verb** — conveys what the product does (e.g., Grab, Snap, Dash)
-
-3. **Abstract/invented** — coined word that sounds right (e.g., Spotify, Figma)
-4. **Real word, new context** — existing word reframed (e.g., Slack, Notion, Linear)
-
-5. **Foreign/multilingual** — borrow from another language for freshness
-
-Present names alongside each direction so the name and visual identity feel cohesive.
-
-## Step 3: Generate 3 Brand Directions
-
-**Always present exactly 3 distinct directions.** Each should feel like a different creative team's pitch — not slight variations.
-
-For each direction, provide:
-
-1. **Brand name**(if naming)**& concept narrative** — 1-2 sentence strategic thinking behind this direction
-2. **Color palette** — primary, secondary, accent with hex + OKLCH values. Include neutral scale (50-900) tinted toward the primary hue. Verify WCAG AA contrast for all text/background pairs.
-
-3. **Typography** — display + body font pairing from Google Fonts with rationale
-4. **Voice** — 3-5 adjectives defining how the brand speaks, plus copy examples across multiple contexts:
-
-- An example **headline** (marketing/hero)
-- An example **onboarding welcome message** (first-time user greeting)
-
-- An example **error message** (something went wrong)
-- An example **empty state message** (no data yet)
-
-- An example **call-to-action** (button or prompt)
-
-These examples make the voice tangible and testable — abstract adjectives alone are not enough.
-
-1. **Visual mood** — overall aesthetic description (photography style, illustration approach, texture usage). Reference 2-3 real-world brands that share elements.
-2. **Exportable tokens** — provide CSS custom properties and Tailwind config alongside each direction (not just at the end) so developers can start experimenting immediately:
-
-```css
-
-/* Direction A tokens */
-
---primary: \#1A1A2E;
-
---primary-oklch: oklch(18% 0.02 270);
-
---accent: \#D4A855;
-
---background: \#F5F0EB;
+# Without this, phone photos appear sideways after processing
 
 ```
 
-```js
+## Resize & Crop
 
-// Tailwind extend
+```python
 
-colors: {
+from PIL import Image, ImageOps
 
-primary: { 50: '...', 100: '...', /* ... */ 900: '...' },
+# --- Fit inside box, keep aspect ratio (shrink only) ---
 
-accent: { 50: '...', /* ... */ 900: '...' }
+img.thumbnail((1080, 1080), Image.Resampling.LANCZOS) \# modifies in place
 
-}
+# --- Exact size, keep aspect, center-crop overflow (best for thumbnails) ---
 
-```
+thumb = ImageOps.fit(img, (300, 300), Image.Resampling.LANCZOS, centering=(0.5, 0.5))
 
-## Step 4: User Picks a Direction
+# --- Exact size, keep aspect, pad with color (letterbox) ---
 
-Present all 3 and ask the user to pick one or mix elements. Use structured prompts to make mixing easier:
+padded = ImageOps.pad(img, (1920, 1080), color=(0, 0, 0))
 
-- "Which **name** resonates most?"
-- "Which **color palette** feels right for your brand?"
+# --- Exact size, ignore aspect (will distort) ---
 
-- "Which **voice/tone** matches how you want to speak to users?"
-- "Which **visual mood** would you want your product to feel like?"
+stretched = img.resize((800, 600), Image.Resampling.LANCZOS)
 
-The user can pick Direction A's name with Direction B's colors and Direction C's tone — facilitate that mixing explicitly. Don't proceed to assets until they approve a direction (or hybrid).
+# --- Scale by factor ---
 
-## Step 4.5: Refine the Chosen Direction
+half = img.resize((img.width // 2, img.height // 2), Image.Resampling.LANCZOS)
 
-Before building the full brand kit, offer a focused refinement round on the selected (or hybrid) direction. Present the consolidated direction summary and ask:
+# --- Manual crop (left, upper, right, lower) — NOT (x, y, w, h) ---
 
-- "Would you like the palette **warmer or cooler**? Lighter or darker overall?"
-- "Should the typography feel **heavier/bolder**or**lighter/more refined**?"
-
-- "Is the voice **too formal, too casual, or just right**?"
-- "Any specific element from the other directions you'd still like to pull in?"
-
-Apply requested tweaks and present the updated direction for final approval. This avoids costly rework after the full kit is built. Limit to **2 refinement rounds max** — if the user is still unsure after two rounds, recommend proceeding and iterating on the finished boards where changes are easier to visualize.
-
-## Step 5: Deliver the Brand Kit
-
-Once a direction is approved, **delegate to the design subagent** (`subagent`with`specialization="DESIGN"`) to build polished visual boards. Embed them as iframes on the canvas.
-
-### Deliverables
-
-**Board 1 — Color & Typography:** Color swatches with hex + OKLCH values, shade ramps (50-900), typography specimen at heading/body/caption sizes with Google Fonts loaded, contrast audit table, dark mode variant.
-
-**Board 2 — Logo Concepts:**3-4 logo variations (wordmark, icon+text, icon-only, monogram) built as**inline SVG**. Show on light and dark backgrounds at multiple sizes (large display + 32px favicon size). Include SVG source for export.
-
-Logo quality checklist:
-
-- Every logo must be **recognizable at 32px** (favicon/app icon test)
-- Include a **single-color version** for monochrome contexts (printing, embossing, watermarks)
-
-- Test on **both light and dark backgrounds** — the logo must work on both without modification or with a simple color inversion
-- Use **geometric simplicity** — avoid fine details that collapse at small sizes
-
-- Provide the icon in a **rounded-square container** variant for app store / social profile use
-
-**Board 3 — Brand in Action:**Realistic mockups showing the brand applied to the**user's actual product type**, not generic pages. If the user is building a marketplace, show a listing card, search results, and app header. If they're building a SaaS dashboard, show the dashboard. Match the mockups to what they're actually building. This board should feel like seeing their real product with the new brand applied.
-
-**Board 4 — Brand Guidelines:** Color usage rules, typography hierarchy, voice & tone guidelines, 1-2 sample applications (business card, social post).
-
-### Accessibility Checklist
-
-Every brand kit must address accessibility beyond just color contrast:
-
-- **Minimum font sizes** — body text no smaller than 16px on web, 14px on mobile. Captions no smaller than 12px.
-- **Touch target sizing** — interactive elements must be at least 44x44px (iOS) / 48x48dp (Android). Specify this in the guidelines so designers don't shrink branded buttons below usable sizes.
-
-- **Motion sensitivity** — if the brand identity includes animations or transitions, provide a `prefers-reduced-motion` alternative. Note which brand animations are decorative (can be removed) vs. functional (must be preserved in reduced form).
-- **Font legibility** — verify that the chosen display and body fonts remain legible at the specified minimum sizes. Decorative display fonts must not be used for body copy or UI labels.
-
-- **Icon clarity** — any branded iconography must be distinguishable at 24px and not rely solely on color to convey meaning.
-
-Include these standards in Board 4 (Brand Guidelines) as a dedicated "Accessibility Standards" section.
-
-### Export & Deliverable Formats
-
-Before building the final kit, ask the user which export formats they need. Present as a checklist:
-
-- **Design tokens** — CSS custom properties, Tailwind config, SCSS variables (included by default)
-- **Asset package** — ZIP containing logo SVGs, PNG exports at 1x/2x/3x, favicon ICO/PNG, and Open Graph image (1200x630)
-
-- **Social media templates** — dimensions and safe zones for Instagram post (1080x1080), Instagram story (1080x1920), X/Twitter header (1500x500), LinkedIn banner (1584x396)
-- **Print-ready files** — CMYK color values, bleed specifications, business card layout (3.5x2in)
-
-- **Brand book PDF** — a single-document summary of all guidelines, suitable for sharing with external vendors or team members
-
-Generate the formats the user selects. At minimum, always deliver design tokens and the asset package.
-
-## Step 5.5: Domain & Social Handle Check
-
-After the user approves a direction and name, verify availability:
-
-- **Domain**: Search for `.com`,`.co`,`.app`,`.io` availability
-- **Social handles**: Check `@name` availability on major platforms via web search (Instagram, TikTok, X/Twitter)
-
-- **Trademark conflicts**: Quick web search for existing trademarks in the same industry
-
-Present findings clearly:
-
-```text
-
-Name: SWAPD
-
-- swapd.com — ❌ taken
-- swapd.co — ✅ available
-
-- swapd.app — ✅ available
-- @swapd (Instagram) — ❌ taken
-
-- @getswapd (Instagram) — ✅ available
-- @swapd (TikTok) — ✅ available
+cropped = img.crop((100, 50, 900, 650))
 
 ```
 
-If the primary domain or key handles are taken, suggest variations (get-, try-, use- prefixes, or alternate TLDs) before the user commits.
+**Resampling filters:** `LANCZOS`for photo downscale (best quality),`BICUBIC`for upscale,`NEAREST` for pixel art/icons (no smoothing).
 
-## Color Science
+## Face-Aware Cropping
 
-- Work in OKLCH color space (perceptually uniform — same L = same perceived lightness across hues)
-- Use color harmony from OKLCH hue space: complementary (H+180°), analogous (H±30°), triadic (H±120°), split-comp (H+150°/H+210°)
+For portraits and headshots, detect the face first and crop around it instead of guessing coordinates. This produces much better results for profile pictures.
 
-- Generate shade ramps by stepping L linearly in OKLCH — avoids the muddy-middle problem of RGB interpolation
-- WCAG 2.2 AA: 4.5:1 contrast for normal text, 3:1 for large text and UI components
+```python
 
-- Use chroma-js or apcach for programmatic contrast verification
-- Dark mode: backgrounds at `oklch(15-20% 0.01 H)` not pure black. Desaturate brand colors slightly (reduce C by ~0.02).
+import cv2
 
-## Limitations
+import numpy as np
 
-- Logo concepts are starting points — final production logos should be refined with a dedicated designer
-- Fonts limited to Google Fonts / open-source unless user provides custom fonts
+from PIL import Image, ImageOps
 
-- Domain/handle availability checks are point-in-time — availability can change; register quickly once decided
-- Trademark search is a surface-level web check, not a legal opinion — recommend a proper trademark search for high-stakes brands
+img = Image.open("portrait.jpg")
+
+img = ImageOps.exif_transpose(img)
+
+cv_img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+
+gray = cv2.cvtColor(cv_img, cv2.COLOR_BGR2GRAY)
+
+cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+
+faces = cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(100, 100))
+
+if len(faces) > 0:
+
+# Use the largest detected face
+
+fx, fy, fw, fh = max(faces, key=lambda f: f[2] * f[3])
+
+face_cx = fx + fw // 2
+
+face_cy = fy + fh // 2
+
+# Square crop centered on face with padding (3x face height for head+shoulders)
+
+crop_size = min(img.width, img.height, fh * 3)
+
+left = max(0, face_cx - crop_size // 2)
+
+top = max(0, face_cy - int(crop_size * 0.35)) \# face in upper third
+
+right = left + crop_size
+
+bottom = top + crop_size
+
+# Clamp to image bounds
+
+if right > img.width:
+
+left -= (right - img.width)
+
+right = img.width
+
+if bottom > img.height:
+
+top -= (bottom - img.height)
+
+bottom = img.height
+
+left = max(0, left)
+
+top = max(0, top)
+
+cropped = img.crop((left, top, right, bottom))
+
+profile = cropped.resize((800, 800), Image.Resampling.LANCZOS)
+
+profile.save("profile_800x800.jpg", quality=92, optimize=True)
+
+else:
+
+# Fallback: center crop
+
+profile = ImageOps.fit(img, (800, 800), Image.Resampling.LANCZOS, centering=(0.5, 0.4))
+
+profile.save("profile_800x800.jpg", quality=92, optimize=True)
+
+```
+
+### Tips
+
+- `centering=(0.5, 0.4)` in the fallback biases the crop slightly toward the top — better for portraits than dead center.
+- For group photos with multiple faces, you may want to fit all detected faces in the crop instead of picking the largest.
+
+## Color & Exposure
+
+```python
+
+from PIL import ImageEnhance, ImageOps
+
+# --- Enhancers: 1.0 = unchanged, <1 less, >1 more ---
+
+img = ImageEnhance.Brightness(img).enhance(1.15)
+
+img = ImageEnhance.Contrast(img).enhance(1.2)
+
+img = ImageEnhance.Color(img).enhance(1.1) \# saturation
+
+img = ImageEnhance.Sharpness(img).enhance(1.5)
+
+# --- Quick ops ---
+
+gray = ImageOps.grayscale(img)
+
+inverted = ImageOps.invert(img.convert("RGB"))
+
+auto = ImageOps.autocontrast(img, cutoff=1) \# stretch histogram, clip 1% extremes
+
+equalized = ImageOps.equalize(img) \# flatten histogram
+
+```
+
+## Filters
+
+```python
+
+from PIL import ImageFilter
+
+img.filter(ImageFilter.GaussianBlur(radius=5))
+
+img.filter(ImageFilter.UnsharpMask(radius=2, percent=150, threshold=3)) \# better than SHARPEN
+
+img.filter(ImageFilter.BoxBlur(10))
+
+img.filter(ImageFilter.FIND_EDGES)
+
+img.filter(ImageFilter.MedianFilter(size=3)) \# denoise, removes salt-and-pepper
+
+```
+
+## Watermark / Logo Removal
+
+Use OpenCV's `cv2.inpaint()`— it fills a masked region by sampling surrounding pixels, producing seamless results. **Do not use pixel-by-pixel`getpixel`/`putpixel` loops** — they are slow and produce visible artifacts.
+
+### Step 1: Find the watermark boundaries
+
+Always inspect the image at full resolution first. Watermarks are often much larger than they appear in thumbnails. Save a crop of the watermark region to verify coordinates before attempting removal.
+
+```python
+
+import cv2
+
+import numpy as np
+
+from PIL import Image, ImageOps
+
+img = Image.open("photo.jpg")
+
+img = ImageOps.exif_transpose(img)
+
+w, h = img.size
+
+# Save a debug crop of the suspected watermark area to verify its extent
+
+debug = img.crop((0, 0, min(w, 1000), min(h, 500)))
+
+debug.save("debug_watermark_area.jpg")
+
+# IMPORTANT: View this debug image to confirm where the watermark actually is
+
+# before proceeding. Guessing coordinates wastes iterations.
+
+```
+
+### Step 2: Create a mask and inpaint
+
+```python
+
+cv_img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+
+# --- Option A: Color-based mask (best for colored logos on neutral backgrounds) ---
+
+hsv = cv2.cvtColor(cv_img, cv2.COLOR_BGR2HSV)
+
+# Example: detect blue watermark pixels (adjust ranges for your watermark color)
+
+lower_blue = np.array([90, 40, 40])
+
+upper_blue = np.array([130, 255, 255])
+
+mask = cv2.inRange(hsv, lower_blue, upper_blue)
+
+# Also catch dark text pixels in the watermark region
+
+roi_gray = cv2.cvtColor(cv_img[:wm_h, :wm_w], cv2.COLOR_BGR2GRAY)
+
+_, dark_mask = cv2.threshold(roi_gray, 80, 255, cv2.THRESH_BINARY_INV)
+
+# Combine: place dark_mask into the full-size mask
+
+mask[:wm_h, :wm_w] = cv2.bitwise_or(mask[:wm_h, :wm_w], dark_mask)
+
+# --- Option B: Region-based mask (when you know the bounding box) ---
+
+# Simpler but removes everything in the box, not just the watermark pixels
+
+mask = np.zeros(cv_img.shape[:2], dtype=np.uint8)
+
+mask[0:wm_h, 0:wm_w] = 255 \# fill the entire watermark region
+
+# Dilate the mask slightly to catch anti-aliased edges
+
+kernel = np.ones((5, 5), np.uint8)
+
+mask = cv2.dilate(mask, kernel, iterations=2)
+
+# Inpaint — fills masked area using surrounding pixel data
+
+result = cv2.inpaint(cv_img, mask, inpaintRadius=7, flags=cv2.INPAINT_TELEA)
+
+# INPAINT_TELEA: fast marching method (best for most cases)
+
+# INPAINT_NS: Navier-Stokes (better for large regions, slower)
+
+result_pil = Image.fromarray(cv2.cvtColor(result, cv2.COLOR_BGR2RGB))
+
+result_pil.save("clean.jpg", quality=92, optimize=True)
+
+```
+
+### Step 3: Verify the result
+
+```python
+
+# Save a crop of the same region after removal to confirm it's clean
+
+verify = result_pil.crop((0, 0, min(w, 1000), min(h, 500)))
+
+verify.save("debug_watermark_removed.jpg")
+
+# View this image before proceeding to resize/crop
+
+```
+
+#### Tips (2)
+
+- For watermarks on uniform backgrounds (studio portraits, product photos), `INPAINT_TELEA`with`inpaintRadius=5-10` works well.
+- For watermarks over textured areas (landscapes, fabric), use `INPAINT_NS` with a larger radius (10-15).
+
+- If the watermark is semi-transparent, color-based masking (Option A) is more precise than a rectangular region mask.
+- Always verify at full resolution — artifacts invisible in thumbnails may be obvious when zoomed in.
+
+## Text & Watermark (Adding)
+
+```python
+
+from PIL import Image, ImageDraw, ImageFont
+
+draw = ImageDraw.Draw(img)
+
+try:
+
+font = ImageFont.truetype("DejaVuSans-Bold.ttf", 48) \# Linux default
+
+except OSError:
+
+font = ImageFont.load_default() \# fallback (tiny, ugly)
+
+# --- Text with outline ---
+
+draw.text((50, 50), "Caption", font=font, fill="white",
+
+stroke_width=3, stroke_fill="black")
+
+# --- Centered text ---
+
+bbox = draw.textbbox((0, 0), "Centered", font=font)
+
+tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+
+draw.text(((img.width - tw) // 2, (img.height - th) // 2), "Centered", font=font, fill="white")
+
+# --- Watermark (semi-transparent PNG overlay) ---
+
+logo = Image.open("logo.png").convert("RGBA")
+
+logo.thumbnail((img.width // 5, img.height // 5))
+
+# Fade to 40% opacity
+
+alpha = logo.split()[3].point(lambda p: int(p * 0.4))
+
+logo.putalpha(alpha)
+
+pos = (img.width - logo.width - 20, img.height - logo.height - 20)
+
+img.paste(logo, pos, logo) \# third arg = alpha mask — REQUIRED for transparency
+
+```
+
+## Save & Optimize
+
+```python
+
+# --- JPEG ---
+
+img.convert("RGB").save("out.jpg", quality=85, optimize=True, progressive=True)
+
+# convert("RGB") REQUIRED if source has alpha — JPEG can't store transparency
+
+# --- PNG (lossless — quality param does nothing) ---
+
+img.save("out.png", optimize=True, compress_level=9)
+
+# --- WebP (best web format: ~30% smaller than JPEG at same quality) ---
+
+img.save("out.webp", quality=85, method=6) \# method 0-6, 6=slowest/best compression
+
+# --- AVIF (smallest files, Pillow 11+, slower encode) ---
+
+img.save("out.avif", quality=75) \# 75 ≈ JPEG 85 visually, ~50% smaller
+
+# --- Strip all metadata (privacy) ---
+
+clean = Image.new(img.mode, img.size)
+
+clean.putdata(list(img.getdata()))
+
+clean.save("stripped.jpg", quality=85)
+
+```
+
+**Quality guide:** JPEG/WebP 85 = sweet spot. 90+ = diminishing returns. <70 = visible artifacts. Never re-save JPEGs repeatedly — each save degrades (generation loss).
+
+## Batch Processing
+
+```python
+
+from pathlib import Path
+
+from PIL import Image, ImageOps
+
+out = Path("optimized"); out.mkdir(exist_ok=True)
+
+for p in Path("photos").glob("*.[jJ][pP]*[gG]"): \# matches jpg, jpeg, JPG, JPEG
+
+img = ImageOps.exif_transpose(Image.open(p))
+
+img.thumbnail((1920, 1920), Image.Resampling.LANCZOS)
+
+img.convert("RGB").save(out / f"{p.stem}.webp", quality=85, method=6)
+
+```
+
+## sharp (Node.js — use for high throughput)
+
+```javascript
+
+const sharp = require('sharp');
+
+// Resize + convert + optimize, streaming (flat memory)
+
+await sharp('in.jpg')
+
+.rotate() // auto-rotate from EXIF (like exif_transpose)
+
+.resize(1080, 1080, { fit: 'cover', position: 'center' }) // = ImageOps.fit
+
+.webp({ quality: 85 })
+
+.toFile('out.webp');
+
+// fit options: 'cover' (crop), 'contain' (letterbox), 'inside' (shrink to fit), 'fill' (stretch)
+
+// Composite watermark
+
+await sharp('photo.jpg')
+
+.composite([{ input: 'logo.png', gravity: 'southeast' }])
+
+.toFile('watermarked.jpg');
+
+```
+
+sharp strips all metadata by default. Use `.withMetadata()` to preserve EXIF/ICC.
+
+## OpenCV (when Pillow isn't enough)
+
+```python
+
+import cv2
+
+img = cv2.imread("in.jpg") \# BGR order, not RGB!
+
+gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+# Face detection
+
+cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+
+faces = cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
+
+for (x, y, w, h) in faces:
+
+cv2.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 2)
+
+cv2.imwrite("out.jpg", img)
+
+# Pillow <-> OpenCV
+
+import numpy as np
+
+cv_img = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
+
+pil_img = Image.fromarray(cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB))
+
+```
+
+## Bulk Pixel Manipulation — Use numpy, Not getpixel/putpixel
+
+**Never loop over pixels with `getpixel()`/`putpixel()`** for large regions — it is extremely slow (minutes for a full image). Convert to a numpy array, operate on the array, then convert back.
+
+```python
+
+import numpy as np
+
+from PIL import Image
+
+img = Image.open("photo.jpg").convert("RGB")
+
+arr = np.array(img) \# shape: (height, width, 3), dtype: uint8
+
+# Example: replace a region with sampled background color
+
+bg_color = arr[50, -100, :] \# sample one pixel from the right side
+
+arr[0:300, 0:800, :] = bg_color \# fill the region instantly
+
+# Example: blend two regions with a gradient mask
+
+alpha = np.linspace(1, 0, 100).reshape(1, 100, 1) \# horizontal fade over 100px
+
+region = arr[0:300, 700:800, :]
+
+bg_strip = np.full_like(region, bg_color)
+
+arr[0:300, 700:800, :] = (region * (1 - alpha) + bg_strip * alpha).astype(np.uint8)
+
+result = Image.fromarray(arr)
+
+```
+
+**Speed comparison:** `putpixel` on a 700x250 region = ~175,000 calls = 30+ seconds. numpy array slice = instant.
+
+## Platform Dimensions
+
+| Platform | Size | Ratio |
+
+|---|---|---|
+
+| Instagram post | 1080x1080 | 1:1 |
+
+| Instagram story / TikTok | 1080x1920 | 9:16 |
+
+| LinkedIn profile photo | 400x400 | 1:1 |
+
+| LinkedIn banner | 1584x396 | 4:1 |
+
+| LinkedIn post | 1200x627 | 1.91:1 |
+
+| Twitter/X profile | 400x400 | 1:1 |
+
+| Twitter/X post | 1200x675 | 16:9 |
+
+| Facebook profile | 320x320 | 1:1 |
+
+| Facebook cover | 851x315 | 2.7:1 |
+
+| YouTube thumbnail | 1280x720 | 16:9 |
+
+| WhatsApp profile | 500x500 | 1:1 |
+
+| Open Graph (link preview) | 1200x630 | 1.91:1 |
+
+## Debug Workflow
+
+When edits don't look right, follow this process instead of re-running the whole pipeline blindly:
+
+1. **Save a debug crop of the target area** before and after processing. View both to confirm what changed.
+2. **Work at full resolution first.** Watermarks and artifacts that look small in a thumbnail can be large at native resolution. Always inspect at the original size before resizing.
+
+3. **Save intermediate results.** After each major processing step (watermark removal, crop, resize), save a checkpoint image so you can identify which step introduced a problem.
+4. **Spot-check specific pixels** to verify processing took effect:
+
+```python
+
+# Quick pixel check after watermark removal
+
+for (x, y) in [(60, 50), (200, 130), (400, 100)]:
+
+print(f"({x},{y}): {img.getpixel((x, y))}")
+
+# If these still show watermark colors (e.g. bright blue), removal failed
+
+```
+
+## Gotchas
+
+- **`img.crop()`box is`(left, top, right, bottom)`** — absolute coords, NOT`(x, y, width, height)`
+- **`thumbnail()`mutates in place and returns`None`** — don't do`img = img.thumbnail(...)`
+
+- **Paste with transparency** needs the image as the third (mask) arg: `bg.paste(fg, pos, fg)`
+- **Palette mode ("P")** breaks many filters — `img.convert("RGB")` first
+
+- **Fonts:** `ImageFont.truetype`needs a real font file. Linux:`/usr/share/fonts/truetype/dejavu/`. Ship a`.ttf` with your code for portability.
+- **OpenCV needs numpy** — always `pip install opencv-python numpy` together
+
+- **OpenCV uses BGR, Pillow uses RGB** — convert when switching between them or colors will be wrong
